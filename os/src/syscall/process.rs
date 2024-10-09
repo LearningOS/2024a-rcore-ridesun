@@ -7,6 +7,7 @@ use crate::{
     },
     timer::get_time_us,
 };
+use crate::task::TaskStatus::Running;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -25,7 +26,16 @@ pub struct TaskInfo {
     /// Total running time of task
     time: usize,
 }
-
+impl TaskInfo {
+    pub fn modify_task_info(task_info:*mut Self)->Option<()>{
+        unsafe{
+            (*task_info).status=Running;
+            (*task_info).syscall_times=get_syscall_times();
+            (*task_info).time=get_task_time();
+        }
+        Some(())
+    }
+}
 /// task exits and submit an exit code
 pub fn sys_exit(exit_code: i32) -> ! {
     trace!("[kernel] Application exited with code {}", exit_code);
@@ -56,11 +66,8 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
 /// YOUR JOB: Finish sys_task_info to pass testcases
 pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
     trace!("kernel: sys_task_info");
-    unsafe {
-        (*ti).status = TaskStatus::Running;
-        (*ti).syscall_times = get_syscall_times();
-        (*ti).time = get_task_time();
+    match TaskInfo::modify_task_info(ti){
+        None => -1,
+        Some(_) => 0
     }
-    0
-
 }

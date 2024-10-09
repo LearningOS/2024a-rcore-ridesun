@@ -56,7 +56,7 @@ lazy_static! {
             task_cx: TaskContext::zero_init(),
             task_syscall_times: [0;MAX_SYSCALL_NUM],
             task_status: TaskStatus::UnInit,
-            task_time: 0,
+            task_time: Default::default(),
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -206,5 +206,4 @@ pub fn update_syscall_times(syscall_id: usize) {
 /// Get the current 'Running' task's time between the system call time and the first time the task is scheduled
 pub fn get_task_time() -> usize {
     TASK_MANAGER.get_task_time()
-
 }
