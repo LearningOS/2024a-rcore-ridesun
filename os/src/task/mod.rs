@@ -15,7 +15,7 @@ mod switch;
 mod task;
 
 use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
-use crate::loader::{get_num_app, init_app_cx};
+use crate::loader::get_num_app;
 use crate::sync::UPSafeCell;
 use lazy_static::*;
 use switch::__switch;
@@ -206,4 +206,5 @@ pub fn update_syscall_times(syscall_id: usize) {
 /// Get the current 'Running' task's time between the system call time and the first time the task is scheduled
 pub fn get_task_time() -> usize {
     TASK_MANAGER.get_task_time()
+
 }
