@@ -289,6 +289,8 @@ impl MemorySet {
             }
             if let Some(ppn)=frame_alloc(){
                 self.page_table.map(vpn,ppn.ppn,flags);
+            }else {
+                return Err("can't alloc frame")
             }
         }
         Ok(())

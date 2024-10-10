@@ -31,7 +31,7 @@ impl From<usize> for  PTEFlags {
             pte_flags |= PTEFlags::X;
         }
         if value & !0b111 != 0 {
-            panic!("Invalid flags: other bits must be 0");
+            panic!("other bits must be 0");
         }
         pte_flags |= PTEFlags::U;
         pte_flags |= PTEFlags::V;
