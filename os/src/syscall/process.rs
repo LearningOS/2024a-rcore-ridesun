@@ -94,7 +94,7 @@ pub fn sys_mmap(start: usize, len: usize, port: usize) -> isize {
     trace!("kernel: sys_mmap");
     match mmap_cur_task(start,len,port) {
         Ok(_) => 0,
-        Err(e) => {error!(e);-1}
+        Err(e) => {error!("{e}");-1}
     }
 }
 
@@ -103,7 +103,7 @@ pub fn sys_munmap(start: usize, len: usize) -> isize {
     trace!("kernel: sys_munmap");
     match munmap_cur_task(start,len) {
         Ok(_) => 0,
-        Err(e) => {error!(e);-1}
+        Err(e) => {error!("{e}");-1}
     }
 }
 /// change data segment size
