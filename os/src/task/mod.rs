@@ -33,8 +33,9 @@ pub use task::{TaskControlBlock, TaskStatus};
 pub use id::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
 pub use manager::add_task;
 pub use processor::{
-    current_task, current_trap_cx, current_user_token, run_tasks, schedule, take_current_task,
-    Processor,
+    current_task, current_trap_cx, current_user_token, get_syscall_times, get_task_status,
+    get_task_time, mmap_cur_task, munmap_cur_task, run_tasks, schedule, take_current_task,
+    update_syscall_times, Processor,
 };
 /// Suspend the current 'Running' task and run the next task in task list.
 pub fn suspend_current_and_run_next() {
@@ -58,6 +59,8 @@ pub fn suspend_current_and_run_next() {
 /// pid of usertests app in make run TEST=1
 pub const IDLE_PID: usize = 0;
 
+/// Big_Stride
+pub const BIG_STRIDE: usize = 1 << 31;  // 2^31
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
     // take from Processor

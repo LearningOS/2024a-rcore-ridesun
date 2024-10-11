@@ -11,6 +11,8 @@ use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use lazy_static::*;
+use crate::config::MAX_SYSCALL_NUM;
+use crate::timer::get_time_ms;
 
 /// Processor management structure
 pub struct Processor {
@@ -44,6 +46,38 @@ impl Processor {
     pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
         self.current.as_ref().map(Arc::clone)
     }
+
+    fn update_syscall_times(&self, syscall_id: usize) {
+        let current=self.current().unwrap();
+        let mut inner = current.inner_exclusive_access();
+        inner.task_syscall_times[syscall_id]+=1;
+    }
+    fn get_syscall_times(&self) -> [u32; MAX_SYSCALL_NUM] {
+        let current=self.current().unwrap();
+        let inner = current.inner_exclusive_access();
+        inner.task_syscall_times
+    }
+    fn get_task_time(&self) -> usize {
+        let current=self.current().unwrap();
+        let inner = current.inner_exclusive_access();
+        inner.task_time
+    }
+
+    fn mmap_cur_task(&self,start:usize,len:usize,port:usize)->Result<(),&'static str>{
+        let current=self.current().unwrap();
+        let mut inner = current.inner_exclusive_access();
+        inner.memory_set.alloc_vm(start,len,port)
+    }
+    fn munmap_cur_task(&self,start:usize,len:usize)->Result<(),&'static str>{
+        let current=self.current().unwrap();
+        let mut inner = current.inner_exclusive_access();
+        inner.memory_set.free_vm(start,len)
+    }
+    fn get_task_status(&self)->TaskStatus{
+        let current=self.current().unwrap();
+        let inner = current.inner_exclusive_access();
+        inner.task_status
+    }
 }
 
 lazy_static! {
@@ -58,9 +92,11 @@ pub fn run_tasks() {
         if let Some(task) = fetch_task() {
             let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
             // access coming task TCB exclusively
+            task.pass();
             let mut task_inner = task.inner_exclusive_access();
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
             task_inner.task_status = TaskStatus::Running;
+            task_inner.task_time=get_time_ms()-task_inner.task_time;
             // release coming task_inner manually
             drop(task_inner);
             // release coming task TCB manually
@@ -80,7 +116,34 @@ pub fn run_tasks() {
 pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().take_current()
 }
+/// Get the current 'Running' task's syscall times.
+pub fn get_syscall_times() -> [u32; MAX_SYSCALL_NUM] {
+    PROCESSOR.exclusive_access().get_syscall_times()
+}
 
+/// Update the current 'Running' task's syscall times.
+pub fn update_syscall_times(syscall_id: usize) {
+    PROCESSOR.exclusive_access().update_syscall_times(syscall_id);
+}
+
+/// Get the current 'Running' task's time between the system call time and the first time the task is scheduled
+pub fn get_task_time() -> usize {
+    PROCESSOR.exclusive_access().get_task_time()
+}
+
+/// alloc a new virtual memory
+pub fn mmap_cur_task(start:usize,len:usize,port:usize)->Result<(),&'static str>{
+    PROCESSOR.exclusive_access().mmap_cur_task(start,len,port)
+}
+
+/// free virtual memory
+pub fn munmap_cur_task(start:usize,len:usize)->Result<(),&'static str>{
+    PROCESSOR.exclusive_access().munmap_cur_task(start,len)
+}
+/// Get task status
+pub fn get_task_status()->TaskStatus{
+    PROCESSOR.exclusive_access().get_task_status()
+}
 /// Get a copy of the current task
 pub fn current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
