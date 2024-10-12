@@ -4,7 +4,6 @@ use alloc::sync::Arc;
 use core::ptr::addr_of;
 use crate::{
     config::MAX_SYSCALL_NUM,
-    loader::get_app_data_by_name,
     fs::{open_file, OpenFlags},
     mm::{translated_refmut, translated_str},
     task::{

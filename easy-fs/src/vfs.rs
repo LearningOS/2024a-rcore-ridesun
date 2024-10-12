@@ -73,6 +73,11 @@ impl Inode {
             })
         })
     }
+    /// get inode id
+    pub fn get_inode_id(&self)->u64{
+        let fs=self.fs.lock();
+        fs.get_inode_id(self.block_id as u32,self.block_offset) as u64
+    }
     /// Increase the size of a disk inode
     fn increase_size(
         &self,

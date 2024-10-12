@@ -2,16 +2,14 @@
 use super::{add_task, current_user_token, TaskContext, BIG_STRIDE};
 use super::{kstack_alloc, pid_alloc, KernelStack, PidHandle};
 use crate::config::{MAX_SYSCALL_NUM, TRAP_CONTEXT_BASE};
+use crate::fs::{open_file, File, OpenFlags, Stdin, Stdout};
 use crate::mm::{translated_str, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
-use crate::config::TRAP_CONTEXT_BASE;
-use crate::fs::{File, Stdin, Stdout};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefMut;
-use crate::loader::get_app_data_by_name;
 
 /// Task control block structure
 ///
@@ -170,9 +168,10 @@ impl TaskControlBlock {
     pub fn spawn(self:&Arc<Self>,path:*const u8)->isize{
         let token=current_user_token();
         let path=translated_str(token,path);
-        if let Some(data)=get_app_data_by_name(path.as_str()){
+        if let Some(app_inode)=open_file(path.as_str(), OpenFlags::RDONLY){
+            let data=app_inode.read_all();
             let mut parent_inner=self.inner_exclusive_access();
-            let tcb=Arc::new(TaskControlBlock::new(data));
+            let tcb=Arc::new(TaskControlBlock::new(data.as_slice()));
             let mut tcb_inner=tcb.inner_exclusive_access();
 
             tcb_inner.parent=Some(Arc::downgrade(self));
