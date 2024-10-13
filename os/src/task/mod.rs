@@ -60,7 +60,7 @@ pub fn suspend_current_and_run_next() {
 pub const IDLE_PID: usize = 0;
 
 /// Big_Stride
-pub const BIG_STRIDE: usize = 1 << 31;  // 2^31
+pub const BIG_STRIDE: usize = 1616;
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
     // take from Processor

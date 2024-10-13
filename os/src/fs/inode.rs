@@ -4,7 +4,7 @@
 //!
 //! `UPSafeCell<OSInodeInner>` -> `OSInode`: for static `ROOT_INODE`,we
 //! need to wrap `OSInodeInner` into `UPSafeCell`
-use super::File;
+use super::{File, StatMode};
 use crate::drivers::BLOCK_DEVICE;
 use crate::mm::UserBuffer;
 use crate::sync::UPSafeCell;
@@ -26,7 +26,6 @@ pub struct OSInode {
 pub struct OSInodeInner {
     offset: usize,
     inode: Arc<Inode>,
-    nlink:u32,
 }
 
 impl OSInode {
@@ -35,7 +34,7 @@ impl OSInode {
         Self {
             readable,
             writable,
-            inner: unsafe { UPSafeCell::new(OSInodeInner { offset: 0, inode, nlink: 1 }) },
+            inner: unsafe { UPSafeCell::new(OSInodeInner { offset: 0, inode}) },
         }
     }
     /// read all data from the inode
@@ -127,17 +126,13 @@ pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
 }
 
 /// link to a file
-pub fn link_at(old:Arc<OSInode>,new:Arc<OSInode>){
-    let mut old_inner=old.inner.exclusive_access();
-    let mut new_inner=new.inner.exclusive_access();
-    new_inner.inode=Arc::clone(&old_inner.inode);
-    old_inner.nlink+=1;
+pub fn link_at(old:&str,new:&str)->isize{
+    ROOT_INODE.linkat(old,new)
+
 }
 /// unlink
-pub fn unlink_at(path:Arc<OSInode>){
-    let mut inner=path.inner.exclusive_access();
-    inner.nlink-=1;
-    inner.inode.clear();
+pub fn unlink_at(name:&str)->isize{
+    ROOT_INODE.unlink(name)
 }
 impl File for OSInode {
     fn readable(&self) -> bool {
@@ -171,13 +166,12 @@ impl File for OSInode {
         total_write_size
     }
 
-    fn get_ino(&self) -> u64 {
+    fn get_stat(&self) -> (u64, StatMode, u32) {
         let inner=self.inner.exclusive_access();
-        inner.inode.get_inode_id()
-    }
-
-    fn get_nlink(&self) -> u32 {
-        let inner=self.inner.exclusive_access();
-        inner.nlink
+        let inode=Arc::clone(&inner.inode);
+        (inode.get_inode_id(),
+         match inode.get_mode() { 0 => StatMode::DIR,1=>StatMode::FILE,_=>StatMode::NULL },
+         inode.get_nlink(&inode)
+        )
     }
 }

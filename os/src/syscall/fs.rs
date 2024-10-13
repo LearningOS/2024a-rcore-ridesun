@@ -1,6 +1,6 @@
 //! File and filesystem-related syscalls
-use crate::fs::{link_at, open_file, unlink_at, OpenFlags, Stat, StatMode};
-use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
+use crate::fs::{link_at, open_file, unlink_at, OpenFlags, Stat};
+use crate::mm::{translated_byte_buffer, translated_refmut, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
@@ -87,11 +87,11 @@ pub fn sys_fstat(fd: usize, st: *mut Stat) -> isize {
         return -1;
     }
     if let Some(file)=&inner.fd_table[fd]{
-        let inode_id=file.get_ino();
-        let nlink=file.get_nlink();
-        unsafe {
-            *st=Stat::new(inode_id,StatMode::FILE,nlink);
-        }
+        let (ino,mode,nlink)=file.get_stat();
+        drop(inner);
+        let token=current_user_token();
+        let stat=translated_refmut(token,st);
+        stat.new(ino,mode,nlink);
         return 0;
     }
     -1
@@ -106,19 +106,10 @@ pub fn sys_linkat(old_name: *const u8, new_name: *const u8) -> isize {
     let token=current_user_token();
     let old_name=translated_str(token,old_name);
     let new_name=translated_str(token,new_name);
-    if old_name!=new_name {
-        if let Some(old_inode)=open_file(old_name.as_str(),OpenFlags::RDONLY){
-            if let Some(new_inode)=open_file(new_name.as_str(),OpenFlags::CREATE){
-                link_at(old_inode,new_inode);
-            }
-        }else {
-            return -1;
-        }
-        0
+    if old_name==new_name{
+        return -1;
     }
-    else {
-        -1
-    }
+    link_at(old_name.as_str(),new_name.as_str())
 
 }
 
@@ -130,10 +121,5 @@ pub fn sys_unlinkat(name: *const u8) -> isize {
     );
     let token=current_user_token();
     let name=translated_str(token,name);
-    if let Some(inode) = open_file(name.as_str(), OpenFlags::RDONLY) {
-        unlink_at(inode);
-        0
-    } else {
-        -1
-    }
+    unlink_at(name.as_str())
 }

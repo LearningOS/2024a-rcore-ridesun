@@ -311,7 +311,7 @@ impl TaskControlBlock {
     /// pass
     pub fn pass(&self){
         let mut inner=self.inner_exclusive_access();
-        inner.stride=inner.stride.saturating_add(BIG_STRIDE/inner.priority);
+        inner.stride=inner.stride.wrapping_add(BIG_STRIDE/inner.priority);
     }
 }
 
