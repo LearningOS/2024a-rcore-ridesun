@@ -74,9 +74,9 @@ impl Inode {
         })
     }
     /// get inode id
-    pub fn get_inode_id(&self)->u64{
+    pub fn get_inode_id(&self)->u32{
         let fs=self.fs.lock();
-        fs.get_inode_id(self.block_id as u32,self.block_offset) as u64
+        fs.get_inode_id(self.block_id as u32,self.block_offset)
     }
     /// Increase the size of a disk inode
     fn increase_size(
@@ -201,12 +201,6 @@ impl Inode {
             },
             _=>{}
         }
-        let (block_id, block_offset) = fs.get_disk_inode_pos(old_inode_id.unwrap());
-        get_block_cache(block_id as usize, Arc::clone(&self.block_device))
-            .lock()
-            .modify(block_offset, |new_inode: &mut DiskInode| {
-                new_inode.initialize(DiskInodeType::File)
-            });
 
         self.modify_disk_inode(|root_inode| {
             let file_count = (root_inode.size as usize) / DIRENT_SZ;
@@ -216,6 +210,7 @@ impl Inode {
             let dirent = DirEntry::new(new_name, old_inode_id.unwrap());
             root_inode.write_at(file_count * DIRENT_SZ, dirent.as_bytes(), &self.block_device);
         });
+        block_cache_sync_all();
         0
     }
     /// unlink
@@ -241,22 +236,20 @@ impl Inode {
             -1
         })
     }
-    /// get the link num of the param inode
-    pub fn get_nlink(&self, inode: &Arc<Inode>) -> u32 {
+    /// get the nlink
+    pub fn get_nlink(&self,inode:&Arc<Inode>) -> u32 {
         let inode_id = inode.get_inode_id();
         let mut nlink: u32 = 0;
         self.read_disk_inode(|disk_inode| {
-            let file_num = (disk_inode.size as usize) / DIRENT_SZ;
+            let file_count = (disk_inode.size as usize) / DIRENT_SZ;
             let mut dirent = DirEntry::empty();
-            for i in 0..file_num {
-                let readn = disk_inode.read_at(
-                    i * DIRENT_SZ,
-                    dirent.as_bytes_mut(),
-                    &self.block_device
-                );
-                assert!(readn == DIRENT_SZ);
-                if (dirent.inode_id() as u64) == inode_id {
-                    nlink += 1;
+            for i in 0..file_count {
+                assert_eq!(
+                disk_inode.read_at(DIRENT_SZ * i, dirent.as_bytes_mut(), &self.block_device,),
+                DIRENT_SZ,
+            );
+                if dirent.inode_id() == inode_id {
+                    nlink+=1;
                 }
             }
         });

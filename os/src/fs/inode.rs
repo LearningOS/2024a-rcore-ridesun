@@ -169,9 +169,9 @@ impl File for OSInode {
     fn get_stat(&self) -> (u64, StatMode, u32) {
         let inner=self.inner.exclusive_access();
         let inode=Arc::clone(&inner.inode);
-        (inode.get_inode_id(),
+        (inode.get_inode_id() as u64,
          match inode.get_mode() { 0 => StatMode::DIR,1=>StatMode::FILE,_=>StatMode::NULL },
-         inode.get_nlink(&inode)
+         ROOT_INODE.get_nlink(&inode)
         )
     }
 }
